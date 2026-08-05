@@ -104,8 +104,24 @@ export class TeamVaultClient {
     return body.projects.map((p) => ({ id: p.id, slug: p.slug, name: p.name }));
   }
 
-  async listFiles(projectId: string): Promise<VaultFile[]> {
-    const res = await this.request('GET', `/api/projects/${encodeURIComponent(projectId)}/files`);
+  /**
+   * Список файлов проекта. `path` возвращает ровно одну запись (или пустой
+   * массив), `prefix` — поддерево. Фильтруется на сервере: без них резолв
+   * «путь → fileId» выгружал весь проект на каждую операцию — на вальте в
+   * ~1000 заметок это ~100 КБ JSON и полный `findMany` каждый раз.
+   */
+  async listFiles(
+    projectId: string,
+    filter?: { path?: string; prefix?: string },
+  ): Promise<VaultFile[]> {
+    const query = new URLSearchParams();
+    if (filter?.path) query.set('path', filter.path);
+    if (filter?.prefix) query.set('prefix', filter.prefix);
+    const qs = query.toString();
+    const res = await this.request(
+      'GET',
+      `/api/projects/${encodeURIComponent(projectId)}/files${qs ? `?${qs}` : ''}`,
+    );
     const body = (await res.json()) as { files: RawFile[] };
     return body.files.map(TeamVaultClient.parseFile);
   }

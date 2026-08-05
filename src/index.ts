@@ -53,7 +53,7 @@ function resolveProject(projectId: string | undefined): string {
 }
 
 async function findByPath(projectId: string, path: string) {
-  const files = await client.listFiles(projectId);
+  const files = await client.listFiles(projectId, { path });
   return files.find((f) => f.path === path) ?? null;
 }
 
@@ -105,8 +105,7 @@ server.registerTool(
   async ({ projectId, prefix }) => {
     try {
       const id = resolveProject(projectId);
-      let files = await client.listFiles(id);
-      if (prefix) files = files.filter((f) => f.path.startsWith(prefix));
+      const files = await client.listFiles(id, prefix ? { prefix } : undefined);
       return ok(files.map((f) => ({ path: f.path, type: f.fileType, size: f.size })));
     } catch (err) {
       return fail(errMsg(err));
