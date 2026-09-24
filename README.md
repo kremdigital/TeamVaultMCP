@@ -42,7 +42,27 @@ pnpm build          # tsup → dist/index.js (один бандл)
 TEAM_VAULT_URL=… TEAM_VAULT_API_KEY=… node dist/index.js
 ```
 
-Гейты: `pnpm typecheck && pnpm format:check && pnpm build`.
+Гейты: `pnpm typecheck && pnpm format:check && pnpm build && pnpm test`.
+
+## Тесты
+
+```bash
+pnpm test           # vitest run (однократно); pnpm test:watch — в режиме наблюдения
+```
+
+Тесты не ходят в сеть: глобальный `fetch` в каждом тесте подменён заглушкой
+(`tests/setup.ts`), а тест, которому нужен HTTP, ставит свой мок с ответами
+сервера (`tests/helpers/fetch.ts`).
+
+- `tests/client.test.ts` — REST-клиент: заголовок `X-API-Key`, резолв пути
+  через `GET /files?path=…` (включая `200` с пустым списком), `404`,
+  `409 path_exists`, `5xx`, сетевые ошибки.
+- `tests/server.test.ts` — инструменты через настоящий MCP-клиент поверх
+  in-memory транспорта: режим только для чтения, `write_note` (создание и
+  обновление), чтение, перемещение, удаление.
+- `tests/config.test.ts` — разбор переменных окружения.
+- `tests/entry.test.ts` — точка входа `src/index.ts` как дочерний процесс по stdio
+  (`initialize` + `tools/list`, выход с кодом 1 без обязательных переменных).
 
 ## Подключение в Claude Code / MCP-клиенте
 
