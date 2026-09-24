@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { TeamVaultClient, TeamVaultError } from '../src/client.js';
-import { apiError, describeCall, json, mockFetch, rawFile } from './helpers/fetch.js';
+import {
+  apiError,
+  describeCall,
+  json,
+  mockFetch,
+  rawFile,
+  type RecordedRequest,
+} from './helpers/fetch.js';
 
 const API_KEY = 'osync_test_key';
 
 function makeClient(baseUrl = 'https://vault.test') {
   return new TeamVaultClient({ baseUrl, apiKey: API_KEY });
+}
+
+/** A plausible success answer for any endpoint the client calls. */
+function answerAnyEndpoint(req: RecordedRequest): Response {
+  if (req.method === 'GET' && req.url.pathname === '/api/auth/me') {
+    return json({ user: { id: 'u1', email: 'a@b.c', name: null } });
+  }
+  if (req.url.pathname === '/api/projects') return json({ projects: [] });
+  if (req.url.pathname.endsWith('/versions')) return json({ versions: [] });
+  if (req.method === 'GET' && req.url.pathname.endsWith('/files')) return json({ files: [] });
+  if (req.method === 'GET') return new Response('text');
+  if (req.method === 'PATCH') return json({ file: { id: 'f1', path: 'b.md' } });
+  if (req.method === 'DELETE') return json({ success: true });
+  return json({ file: rawFile('f1', 'a.md') }, req.method === 'POST' ? 201 : 200);
 }
 
 /** Resolves to the error the promise rejects with, failing if it resolves. */
@@ -21,18 +42,7 @@ async function rejection(promise: Promise<unknown>): Promise<TeamVaultError> {
 
 describe('TeamVaultClient: authentication', () => {
   it('sends X-API-Key on every request and no other credentials', async () => {
-    const calls = mockFetch((req) => {
-      if (req.method === 'GET' && req.url.pathname === '/api/auth/me') {
-        return json({ user: { id: 'u1', email: 'a@b.c', name: null } });
-      }
-      if (req.url.pathname === '/api/projects') return json({ projects: [] });
-      if (req.url.pathname.endsWith('/versions')) return json({ versions: [] });
-      if (req.method === 'GET' && req.url.pathname.endsWith('/files')) return json({ files: [] });
-      if (req.method === 'GET') return new Response('text');
-      if (req.method === 'PATCH') return json({ file: { id: 'f1', path: 'b.md' } });
-      if (req.method === 'DELETE') return json({ success: true });
-      return json({ file: rawFile('f1', 'a.md') }, req.method === 'POST' ? 201 : 200);
-    });
+    const calls = mockFetch(answerAnyEndpoint);
     const client = makeClient();
 
     await client.whoami();
@@ -132,13 +142,33 @@ describe('TeamVaultClient: path → fileId resolution (listFiles)', () => {
     expect(calls[0]?.url.searchParams.has('path')).toBe(false);
     expect(calls[1]?.url.search).toBe('');
   });
+});
 
-  it('percent-encodes projectId and fileId in the URL path', async () => {
-    const calls = mockFetch(() => new Response('body'));
+describe('TeamVaultClient: URL paths', () => {
+  it('percent-encodes projectId and fileId in the URL path of every call', async () => {
+    const calls = mockFetch(answerAnyEndpoint);
+    const client = makeClient();
+    const projectId = 'p/1?x';
+    const fileId = 'f#1';
 
-    await makeClient().readFile('p/1?x', 'f#1');
+    await client.listFiles(projectId, { path: 'a.md' });
+    await client.readFile(projectId, fileId);
+    await client.createFile(projectId, 'a.md', 'x');
+    await client.updateFile(projectId, fileId, 'y');
+    await client.moveFile(projectId, fileId, 'b.md');
+    await client.deleteFile(projectId, fileId);
+    await client.listVersions(projectId, fileId);
 
-    expect(calls[0]?.url.pathname).toBe('/api/projects/p%2F1%3Fx/files/f%231');
+    // Unencoded, `/` and `?` would split the path and `#` would cut the URL.
+    expect(calls.map(describeCall)).toEqual([
+      'GET /api/projects/p%2F1%3Fx/files?path=a.md',
+      'GET /api/projects/p%2F1%3Fx/files/f%231',
+      'POST /api/projects/p%2F1%3Fx/files',
+      'PUT /api/projects/p%2F1%3Fx/files/f%231',
+      'PATCH /api/projects/p%2F1%3Fx/files/f%231',
+      'DELETE /api/projects/p%2F1%3Fx/files/f%231',
+      'GET /api/projects/p%2F1%3Fx/files/f%231/versions',
+    ]);
   });
 });
 

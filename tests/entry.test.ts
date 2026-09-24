@@ -1,8 +1,12 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import {
+  getDefaultEnvironment,
+  StdioClientTransport,
+} from '@modelcontextprotocol/sdk/client/stdio.js';
 import { describe, expect, it } from 'vitest';
+import { USAGE } from '../src/config.js';
 
 // The stdio entry point as an agent runs it: a child process speaking JSON-RPC
 // over stdin/stdout (the TASK-0010 smoke: `initialize` + `tools/list`). Listing
@@ -52,14 +56,19 @@ describe('stdio entry point (src/index.ts)', { timeout: 30_000 }, () => {
     ]);
   });
 
-  it('exits with code 1 and a hint on stderr without TEAM_VAULT_URL/TEAM_VAULT_API_KEY', () => {
-    const env = { ...process.env };
-    for (const key of Object.keys(env)) if (key.startsWith('TEAM_VAULT_')) delete env[key];
+  it('exits with code 1 and only the usage hint on stderr without TEAM_VAULT_URL/TEAM_VAULT_API_KEY', () => {
+    // The same safe environment the SDK gives the server above: no TEAM_VAULT_*,
+    // no NODE_OPTIONS that could add warnings to stderr.
+    const env = getDefaultEnvironment();
 
     const run = spawnSync(process.execPath, ENTRY, { cwd: ROOT, env, encoding: 'utf8' });
 
     expect(run.status).toBe(1);
     expect(run.stdout).toBe('');
-    expect(run.stderr).toContain('set TEAM_VAULT_URL and TEAM_VAULT_API_KEY');
+    // Exactly the hint: a crash after it (say, without `process.exit(1)` the
+    // entry point goes on and fails destructuring the missing config) also
+    // exits with code 1, but leaves a stack trace here.
+    expect(run.stderr.trim()).toBe(USAGE);
+    expect(USAGE).toContain('set TEAM_VAULT_URL and TEAM_VAULT_API_KEY');
   });
 });
