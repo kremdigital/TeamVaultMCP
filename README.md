@@ -52,7 +52,10 @@ pnpm test           # vitest run (однократно); pnpm test:watch — в 
 
 Тесты не ходят в сеть: глобальный `fetch` в каждом тесте подменён заглушкой
 (`tests/setup.ts`), а тест, которому нужен HTTP, ставит свой мок с ответами
-сервера (`tests/helpers/fetch.ts`).
+сервера (`tests/helpers/fetch.ts`). Клиент перехватывает ошибку заглушки и
+превращает её в обычную `TeamVaultError`, поэтому заглушка ещё и запоминает
+каждый вызов: тест, который забыл мок, падает после выполнения, даже если сам
+ждал ошибку.
 
 - `tests/client.test.ts` — REST-клиент: заголовок `X-API-Key`, резолв пути
   через `GET /files?path=…` (включая `200` с пустым списком), `404`,
@@ -63,6 +66,9 @@ pnpm test           # vitest run (однократно); pnpm test:watch — в 
 - `tests/config.test.ts` — разбор переменных окружения.
 - `tests/entry.test.ts` — точка входа `src/index.ts` как дочерний процесс по stdio
   (`initialize` + `tools/list`, выход с кодом 1 без обязательных переменных).
+- `tests/network-guard.test.ts` — заглушка `fetch`: юнит-проверки и дочерний
+  прогон vitest на `tests/fixtures/*.fixture.ts` (основной прогон эти файлы
+  не собирает).
 
 ## Подключение в Claude Code / MCP-клиенте
 

@@ -1,14 +1,16 @@
-import { beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach } from 'vitest';
+import { assertNoNetworkCalls, installNetworkGuard } from './helpers/network-guard.js';
 
-// Tests never touch the network. A test that expects HTTP installs its own
-// mock with `mockFetch` (tests/helpers/fetch.ts); any other call fails loudly
-// instead of reaching a real server. `unstubGlobals` restores the real `fetch`
-// after each test, so the stub has to be installed again every time.
+// Tests never touch the network. Every test starts with a `fetch` guard that
+// refuses and records each call; a test that expects HTTP installs its own mock
+// with `mockFetch` (tests/helpers/fetch.ts). The client swallows the guard's
+// error into a TeamVaultError, so the check after the test is what fails it.
+// `unstubGlobals` restores the real `fetch` between tests, so the guard has to
+// be installed again every time.
 beforeEach(() => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((input: unknown) => {
-      throw new Error(`Unexpected network call in tests: ${String(input)}`);
-    }),
-  );
+  installNetworkGuard();
+});
+
+afterEach(() => {
+  assertNoNetworkCalls();
 });
