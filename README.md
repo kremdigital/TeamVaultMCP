@@ -12,7 +12,7 @@ API, что использует плагин.
 
 | Переменная              | Обяз. | Описание                                                               |
 | ----------------------- | ----- | ---------------------------------------------------------------------- |
-| `TEAM_VAULT_URL`        | да    | URL сервера, напр. `https://obsidian.artillect.pro`                    |
+| `TEAM_VAULT_URL`        | да    | URL сервера, напр. `https://teamvault.artillect.pro`                   |
 | `TEAM_VAULT_API_KEY`    | да    | API-ключ Team Vault (веб-UI → API-ключи)                               |
 | `TEAM_VAULT_PROJECT_ID` | нет   | проект по умолчанию для инструментов без `projectId`                   |
 | `TEAM_VAULT_READ_ONLY`  | нет   | `1`/`true` — отключить запись (`write_note`/`move_note`/`delete_note`) |
@@ -79,7 +79,7 @@ pnpm test           # vitest run (однократно); pnpm test:watch — в 
       "command": "node",
       "args": ["/абсолютный/путь/TeamVaultMCP/dist/index.js"],
       "env": {
-        "TEAM_VAULT_URL": "https://obsidian.artillect.pro",
+        "TEAM_VAULT_URL": "https://teamvault.artillect.pro",
         "TEAM_VAULT_API_KEY": "osync_…",
         "TEAM_VAULT_PROJECT_ID": "cmq…"
       }
